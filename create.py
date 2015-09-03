@@ -4,8 +4,9 @@ from datetime import date
 import base64
 import config
 import copy
+import helpers
 
-csv_info = []
+people_info = []
 with open('data/participant_info.csv', 'rb') as csvfile:
 	reader = csv.reader(csvfile, delimiter=",")
 	for row in reader:
@@ -18,8 +19,36 @@ with open('data/participant_info.csv', 'rb') as csvfile:
 			}
 		if len(row)>5:
 			data["company"]=row[5]
-		csv_info.append(data)
+		people_info.append(data)
 csvfile.close()
+
+with open('data/issuer_and_collaborator_info.csv') as csvfile:
+	reader = csv.reader(csvfile, delimiter=",")
+	collaborators = []
+	issuer = None
+	for row in reader:
+		data = {
+				"name": row[0],
+				"publicKey": row[1],
+				"image": helpers.encode_image("img/"+row[2]),
+				"url": row[3],
+				"type": row[4]
+			}
+		if row[4] == "collaborator":
+			collaborators.append(data)
+		elif row[4] == "issuer":
+			data["email"] = row[5]
+			data["description"] = {
+				"english": row[6],
+				"spanish": row[7]
+				}
+			issuer = data
+	issuer_and_collaborator_info = {
+		"issuer": issuer,
+		"collaborators" : collaborators
+	}
+csvfile.close()
+
 
 def create_recipient(person):
 	recipient = {
@@ -56,46 +85,30 @@ def create_certificate():
 	    "description": config.WORKSHOP_DESCRIPTION,
 	    "definition": {
 	    	config.EVENT_TYPE: config.WORKSHOP_DEFINITION
-	    },
-	    "issuer": {
-	      	"url": config.LAB_URL,
-	      	"image": config.LAB_IMAGE,
-	      	"email": config.LAB_EMAIL,
-	      	"name": config.LAB_NAME,
-	      	"description": config.LAB_DESCRIPTION
-	    },
-	    "collaborators":[
-	    	{
-	        	"url": config.MEDIA_LAB_URL,
-	        	"image": config.MEDIA_LAB_IMAGE,
-	        	"name": config.MEDIA_LAB_NAME
-	      	},
-	    	{
-	    		"url": config.IDEO_URL,
-	        	"image": config.IDEO_IMAGE,
-	        	"name": config.IDEO_NAME
-	      	}
-	    ]
+	    }
 	}
+	for key in issuer_and_collaborator_info:
+		certificate[key] = issuer_and_collaborator_info[key]
 	return certificate
 
 def create_verification():
-	issuer = copy.deepcopy(config.GENERAL_SIGNATURE)
-	issuer["name"]=config.LAB_NAME
-	issuer["signer"]=config.LAB_PUBLIC_KEY
-
-	medialab = copy.deepcopy(config.GENERAL_SIGNATURE)
-	medialab["name"]=config.MEDIA_LAB_NAME
-	medialab["signer"]=config.MEDIA_LAB_PUBLIC_KEY
-
-	ideo = copy.deepcopy(config.GENERAL_SIGNATURE)
-	ideo["name"]=config.IDEO_NAME
-	ideo["signer"]=config.IDEO_PUBLIC_KEY
-
 	verify = {
-		"issuer": issuer,
-		"collaborators": [medialab, ideo]
+		"issuer": None,
+		"collaborators": []
 	}
+	for key in issuer_and_collaborator_info:
+		if key == "collaborators":
+			for c in issuer_and_collaborator_info[key]:
+				data = copy.deepcopy(config.GENERAL_SIGNATURE)
+				print c
+				data["name"] = c["name"]
+				data["signer"] = c["publicKey"]
+				verify["collaborators"].append(data)
+		elif key == "issuer":
+			data = copy.deepcopy(config.GENERAL_SIGNATURE)
+			data["name"] = issuer_and_collaborator_info[key]["name"]
+			data["signer"] = issuer_and_collaborator_info[key]["publicKey"]
+			verify["issuer"] = data
 	return verify
 
 def make_raw_json(recipient, assertion, certificate, verify):
@@ -109,7 +122,7 @@ def make_raw_json(recipient, assertion, certificate, verify):
 
 verify = create_verification()
 certificate = create_certificate()
-for person in csv_info:
+for person in people_info:
 	recipient = create_recipient(person)
 	assertion = create_assertion(person)
 	raw_json = make_raw_json(recipient, assertion, certificate, verify)
