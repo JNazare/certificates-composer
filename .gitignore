@@ -1,3 +1,5 @@
 *.DS_Store
+*.pyc
+
 participant_info.csv
 raw_jsons/

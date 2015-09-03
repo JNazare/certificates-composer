@@ -40,6 +40,7 @@ WORKSHOP_DEFINITION = {
 	"english": "An immersive learning experience where the participants are supported to develop their skills in a particular area through active engagement in which they share, learn, create, and reflect.",
 	"spanish": "Experiencia intensiva de aprendizaje donde los participantes cuentan con el apoyo y las herramientas necesarias para desarrollar sus habilidades en un área específica mediante una participación activa en la que aprenden, comparten, crean y reflexionan."
 }
+EVENT_TYPE = "workshop"
 
 # WORKSHOP INFORMATION
 WORKSHOP_DESCRIPTION = {

@@ -54,6 +54,9 @@ def create_certificate():
 	    "title": config.WORKSHOP_TITLE,
 	    "image": config.WORKSHOP_IMAGE,
 	    "description": config.WORKSHOP_DESCRIPTION,
+	    "definition": {
+	    	config.EVENT_TYPE: config.WORKSHOP_DEFINITION
+	    },
 	    "issuer": {
 	      	"url": config.LAB_URL,
 	      	"image": config.LAB_IMAGE,
@@ -112,4 +115,4 @@ for person in csv_info:
 	raw_json = make_raw_json(recipient, assertion, certificate, verify)
 	filename = "raw_jsons/" + person["uid"]+".json"
 	with open(filename, "wb") as jsonfile:
-		jsonfile.write(json.dumps(raw_json)) #ensure the dumping doesn't mess up the JSON encoding!
+		jsonfile.write(json.dumps(raw_json, ensure_ascii=False)) #ensure the dumping doesn't mess up the JSON encoding!
