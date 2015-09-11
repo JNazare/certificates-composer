@@ -13,8 +13,8 @@ with open('data/participant_info.csv', 'rb') as csvfile:
 		data = {
 				"uid": row[0],
 				"publicKey": row[1],
-				"givenName": unicode(row[2], "utf-8").encode("utf-8"),
-				"familyName": unicode(row[3], "utf-8").encode("utf-8"),
+				"givenName": row[2],
+				"familyName": row[3],
 				"identity": row[4]
 			}
 		if len(row)>5:
@@ -103,4 +103,4 @@ for person in people_info:
 	raw_json = make_raw_json(recipient, assertion, certificate, verify, extension)
 	filename = "raw_jsons/" + person["uid"]+".json"
 	with open(filename, "wb") as jsonfile:
-		jsonfile.write(json.dumps(raw_json, ensure_ascii=False)) #ensure the dumping doesn't mess up the JSON encoding!
+		jsonfile.write(json.dumps(raw_json, ensure_ascii=True)) #ensure the dumping doesn't mess up the JSON encoding!
