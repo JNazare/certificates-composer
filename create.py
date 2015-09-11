@@ -4,115 +4,103 @@ from datetime import date
 import base64
 import config
 import copy
+import helpers
 
-csv_info = []
+people_info = []
 with open('data/participant_info.csv', 'rb') as csvfile:
 	reader = csv.reader(csvfile, delimiter=",")
 	for row in reader:
 		data = {
 				"uid": row[0],
 				"publicKey": row[1],
-				"givenName": unicode(row[2], "utf-8").encode("utf-8"),
-				"familyName": unicode(row[3], "utf-8").encode("utf-8"),
+				"givenName": row[2],
+				"familyName": row[3],
 				"identity": row[4]
 			}
 		if len(row)>5:
 			data["company"]=row[5]
-		csv_info.append(data)
+		people_info.append(data)
 csvfile.close()
 
 def create_recipient(person):
 	recipient = {
-		"type": config.IDENTITY_TYPE,
+		"type": "email",
 		"familyName": person["familyName"],
 		"givenName": person["givenName"],
-		"publicKey": person["publicKey"],
+		"pubkey": person["publicKey"],
 		"identity": person["identity"],
 		"hashed": False
 	}
-	if person.get("company", None):
-		recipient["company"] = person["company"]
 	return recipient
 
 def create_assertion(person, issued_on=str(date.today())):
 	assertion = {
 			"issuedOn": issued_on,
-			"image:signature": config.SIGNATURE_IMAGE,
+			"image:signature": config.ISSUER_SIGNATURE_IMAGE,
 			"uid": person["uid"],
-			"evidence": {} #this will be figured out tomorrow
+			"id": config.ISSUER_CERTS_URL+"/"+person["uid"],
+			"evidence": {
+				"type": "url",
+				"data": config.ISSUER_CERTS_URL+"/"+person["uid"]+"/evidence"
+			}
 		}
 	return assertion
 
 
 def create_certificate():
 	certificate = {
-		"facts": {
-	      	"date": config.WORKSHOP_DATE,
-	      	"hours": config.WORKSHOP_HOURS,
-	      	"numberOfParticipants": config.WORKSHOP_PARTICIPANTS
+		"subtitle": {
+	      	"content": config.CERTIFICATE_DATE,
+	      	"display": True
 	    },
-	    "title": config.WORKSHOP_TITLE,
-	    "image": config.WORKSHOP_IMAGE,
-	    "description": config.WORKSHOP_DESCRIPTION,
-	    "definition": {
-	    	config.EVENT_TYPE: config.WORKSHOP_DEFINITION
-	    },
+	    "title": config.CERTIFICATE_TITLE,
+	    "language": config.CERTIFICATE_LANGUAGE,
+	    "image": config.CERTIFICATE_IMAGE,
+	    "description": config.CERTIFICATE_DESCRIPTION,
+	    "id": config.CERTIFICATE_ID,
 	    "issuer": {
-	      	"url": config.LAB_URL,
-	      	"image": config.LAB_IMAGE,
-	      	"email": config.LAB_EMAIL,
-	      	"name": config.LAB_NAME,
-	      	"description": config.LAB_DESCRIPTION
-	    },
-	    "collaborators":[
-	    	{
-	        	"url": config.MEDIA_LAB_URL,
-	        	"image": config.MEDIA_LAB_IMAGE,
-	        	"name": config.MEDIA_LAB_NAME
-	      	},
-	    	{
-	    		"url": config.IDEO_URL,
-	        	"image": config.IDEO_IMAGE,
-	        	"name": config.IDEO_NAME
-	      	}
-	    ]
+	    	"url": config.ISSUER_URL,
+	    	"image": helpers.encode_image('img/labcdmx.png'),
+	    	"email": config.ISSUER_EMAIL,
+	    	"name": config.ISSUER_NAME,
+	    	"id": config.ISSUER_ID
+	    }
 	}
 	return certificate
 
 def create_verification():
-	issuer = copy.deepcopy(config.GENERAL_SIGNATURE)
-	issuer["name"]=config.LAB_NAME
-	issuer["signer"]=config.LAB_PUBLIC_KEY
-
-	medialab = copy.deepcopy(config.GENERAL_SIGNATURE)
-	medialab["name"]=config.MEDIA_LAB_NAME
-	medialab["signer"]=config.MEDIA_LAB_PUBLIC_KEY
-
-	ideo = copy.deepcopy(config.GENERAL_SIGNATURE)
-	ideo["name"]=config.IDEO_NAME
-	ideo["signer"]=config.IDEO_PUBLIC_KEY
-
 	verify = {
-		"issuer": issuer,
-		"collaborators": [medialab, ideo]
+		"signer": config.ISSUER_PUBLIC_KEY_URL,
+		"attribute-signed": "uid",
+    	"type": "ECDSA(secp256k1)"
 	}
 	return verify
 
-def make_raw_json(recipient, assertion, certificate, verify):
+def create_extension(person):
+	extension = {
+	"assertion": {
+		"endorsers": config.ASSERTION_ENSORERS
+		}
+	}
+	return extension
+
+def make_raw_json(recipient, assertion, certificate, verify, extension):
 	raw_json = {
 		"recipient": recipient,
 		"assertion": assertion,
 		"certificate": certificate,
-		"verify": verify
+		"verify": verify,
+		"extension": extension
 	}
 	return raw_json
 
 verify = create_verification()
 certificate = create_certificate()
-for person in csv_info:
+for person in people_info:
 	recipient = create_recipient(person)
 	assertion = create_assertion(person)
-	raw_json = make_raw_json(recipient, assertion, certificate, verify)
+	extension = create_extension(person)
+	raw_json = make_raw_json(recipient, assertion, certificate, verify, extension)
 	filename = "raw_jsons/" + person["uid"]+".json"
 	with open(filename, "wb") as jsonfile:
-		jsonfile.write(json.dumps(raw_json, ensure_ascii=False)) #ensure the dumping doesn't mess up the JSON encoding!
+		jsonfile.write(json.dumps(raw_json, ensure_ascii=True)) #ensure the dumping doesn't mess up the JSON encoding!
